@@ -66,6 +66,8 @@ void* download_routine(void* arg) {
         pthread_cond_broadcast(&entry->cond);
         pthread_mutex_unlock(&entry->mutex);
 
+        free(hostname);
+        free(path);
         free(args);
         return NULL;
     }
@@ -87,6 +89,8 @@ void* download_routine(void* arg) {
         pthread_cond_broadcast(&entry->cond);
         pthread_mutex_unlock(&entry->mutex);
 
+        free(hostname);
+        free(path);
         free(args);
         return NULL;
     }
@@ -101,6 +105,8 @@ void* download_routine(void* arg) {
         pthread_cond_broadcast(&entry->cond);
         pthread_mutex_unlock(&entry->mutex);
         
+        free(hostname);
+        free(path);
         free(args);
         return NULL;
     }
@@ -122,6 +128,8 @@ void* download_routine(void* arg) {
         pthread_cond_broadcast(&entry->cond);
         pthread_mutex_unlock(&entry->mutex);
         
+        free(hostname);
+        free(path);
         free(args);
         return NULL;
     }
@@ -132,6 +140,8 @@ void* download_routine(void* arg) {
 
     close(server_sock);
     
+    free(hostname);
+    free(path);
     free(args);
     
     return NULL;

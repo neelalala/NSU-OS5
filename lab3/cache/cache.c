@@ -60,15 +60,17 @@ Entry* cache_find_or_create(Cache* list, char* host, int port, char* path) {
     list->first = new_entry;
 
     download_args *args = malloc(sizeof(download_args));
-    args->hostname = host;
+    args->hostname = strdup(host);
     args->port = port;
-    args->path = path;
+    args->path = strdup(path);
     args->entry = new_entry;
 
     pthread_t downloader;
     if (pthread_create(&downloader, NULL, download_routine, args) != 0) {
         new_entry->is_complete = new_entry->is_error = 1;
         pthread_cond_broadcast(&new_entry->cond);
+        free(args->hostname);
+        free(args->path);
         free(args);
     } else {
         pthread_detach(downloader);
