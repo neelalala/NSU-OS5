@@ -31,7 +31,7 @@ int read_request(int sock, http_request_t* req) {
     int n;
 
     while (total_read < BUFFER_SIZE - 1) {
-        n = read(sock, buffer + total_read, BUFFER_SIZE - 1 - total_read);
+        n = read(sock, buffer + total_read, BUFFER_SIZE - 1 - total_read); // TODO: may read body in this buffer
         if (n <= 0) {
             close(sock);
             return -1;
