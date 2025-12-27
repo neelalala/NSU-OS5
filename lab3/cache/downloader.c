@@ -38,7 +38,6 @@ int connect_to_remote(char *hostname, int port) {
         break;
     }
 
-
     freeaddrinfo(servinfo);
 
     if (!p) {
@@ -48,8 +47,24 @@ int connect_to_remote(char *hostname, int port) {
     return sockfd;
 }
 
+void cleanup_on_error(download_args *args) {
+    pthread_mutex_lock(&args->entry->mutex);
+    args->entry->is_error = args->entry->is_complete = 1;
+
+    pthread_cond_broadcast(&args->entry->cond);
+    pthread_mutex_unlock(&args->entry->mutex);
+
+    cache_remove_unsafe(args->cache, args->entry);
+    cache_entry_release(args->entry);
+
+    free(args->hostname);
+    free(args->path);
+    free(args);
+}
+
 void* download_routine(void* arg) {
     download_args *args = (download_args*)arg;
+    Cache* cache = args->cache;
     Entry* entry = args->entry;
     char *hostname = args->hostname;
     char *path = args->path;
@@ -60,15 +75,7 @@ void* download_routine(void* arg) {
     int server_sock = connect_to_remote(hostname, port);
     if (server_sock < 0) {
         printf("[Downloader] Connection to remote failed\n");
-        pthread_mutex_lock(&entry->mutex);
-        entry->is_error = entry->is_complete = 1;
-
-        pthread_cond_broadcast(&entry->cond);
-        pthread_mutex_unlock(&entry->mutex);
-
-        free(hostname);
-        free(path);
-        free(args);
+        cleanup_on_error(args);
         return NULL;
     }
 
@@ -83,15 +90,7 @@ void* download_routine(void* arg) {
         printf("[Downloader] Request is too long (%dbytes)\n", req_len);
         close(server_sock);
 
-        pthread_mutex_lock(&entry->mutex);
-        entry->is_error = entry->is_complete = 1;
-
-        pthread_cond_broadcast(&entry->cond);
-        pthread_mutex_unlock(&entry->mutex);
-
-        free(hostname);
-        free(path);
-        free(args);
+        cleanup_on_error(args);
         return NULL;
     }
 
@@ -99,22 +98,25 @@ void* download_routine(void* arg) {
         perror("[Downloader] Write to server failed");
         close(server_sock);
 
-        pthread_mutex_lock(&entry->mutex);
-        entry->is_error = entry->is_complete = 1;
- 
-        pthread_cond_broadcast(&entry->cond);
-        pthread_mutex_unlock(&entry->mutex);
-        
-        free(hostname);
-        free(path);
-        free(args);
+        cleanup_on_error(args);
         return NULL;
     }
 
-
+    int first_chunk = 1;
+    int status_code;
     char buf[BUFFER_SIZE];
     int n;
     while ((n = read(server_sock, buf, sizeof(buf))) > 0) {
+        if (first_chunk) {
+            first_chunk = 0;
+            int http_ver_major, http_ver_minor;
+            if (sscanf(buf, "HTTP/%d.%d %d", &http_ver_major, &http_ver_minor, &status_code) == 3) {
+                if (status_code != 200) {
+                    printf("[Downloader] Status %d for %s. Removing from cache list.\n", status_code, path);
+                    cache_remove_unsafe(cache, entry);
+                }
+            }
+        }
         cache_append_data(entry, buf, n);
     }
 
@@ -122,12 +124,16 @@ void* download_routine(void* arg) {
         perror("[Downloader] Read error");
         close(server_sock);
 
+        if (status_code == 200) {
+            cache_remove_unsafe(cache, entry);
+        }
+
         pthread_mutex_lock(&entry->mutex);
         entry->is_error = entry->is_complete = 1;
  
         pthread_cond_broadcast(&entry->cond);
         pthread_mutex_unlock(&entry->mutex);
-        
+
         free(hostname);
         free(path);
         free(args);
@@ -136,7 +142,8 @@ void* download_routine(void* arg) {
 
     printf("[Downloader] Finished: %s\n", path);
 
-    cache_mark_complete(entry); 
+    cache_mark_complete(entry);
+    cache_entry_release(entry);
 
     close(server_sock);
     

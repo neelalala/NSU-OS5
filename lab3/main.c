@@ -124,6 +124,7 @@ void* handle_client(void *args) {
         fprintf(stderr, "[Client] Failed to get cache entry\n");
     } else {
         stream_from_cache(entry, client_sock);
+        cache_entry_release(entry);
     }
 
     printf("[Client] Finished serving %s\n", req.path);

@@ -12,6 +12,7 @@ typedef struct Node_t {
 typedef struct Entry_t {
     char* url;
 
+    int ref_count;
     Node* first;
     Node* last;
     int total_size;
@@ -34,5 +35,8 @@ int cache_init(Cache** cache);
 Entry* cache_find_or_create(Cache* cache, char* host, int port, char* path);
 void cache_append_data(Entry* entry, char* data, int len);
 void cache_mark_complete(Entry* entry);
+
+void cache_entry_release(Entry* entry); // если ref_count == 0, освобождает Entry
+void cache_remove_unsafe(Cache* cache, Entry* entry); // не освобождает сам Entry, только удаляет из списка
 
 #endif

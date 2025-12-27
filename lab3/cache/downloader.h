@@ -8,6 +8,7 @@ typedef struct download_args_t {
     int port;
     char* path;
 
+    Cache* cache;
     Entry* entry;
 } download_args;
 

@@ -29,6 +29,9 @@ Entry* cache_find_or_create(Cache* cache, char* host, int port, char* path) {
     while (current) {
         if (strcmp(current->url, url) == 0) {
             pthread_rwlock_unlock(&cache->rwlock);
+            pthread_mutex_lock(&current->mutex);
+            current->ref_count++;
+            pthread_mutex_unlock(&current->mutex);
             return current;
         }
         current = current->next;
@@ -40,6 +43,9 @@ Entry* cache_find_or_create(Cache* cache, char* host, int port, char* path) {
     while (current) {
         if (strcmp(current->url, url) == 0) {
             pthread_rwlock_unlock(&cache->rwlock);
+            pthread_mutex_lock(&current->mutex);
+            current->ref_count++;
+            pthread_mutex_unlock(&current->mutex);
             return current;
         }
         current = current->next;
@@ -48,6 +54,7 @@ Entry* cache_find_or_create(Cache* cache, char* host, int port, char* path) {
     Entry* new_entry = malloc(sizeof(Entry));
     new_entry->url = strdup(url);
 
+    new_entry->ref_count = 3; // 1 - в кеше, 2 - в downloader, 3 - в client_handler
     new_entry->first = new_entry->last = NULL;
     new_entry->total_size = 0;
     new_entry->is_complete = 0;
@@ -63,11 +70,13 @@ Entry* cache_find_or_create(Cache* cache, char* host, int port, char* path) {
     args->hostname = strdup(host);
     args->port = port;
     args->path = strdup(path);
+    args->cache = cache;
     args->entry = new_entry;
 
     pthread_t downloader;
     if (pthread_create(&downloader, NULL, download_routine, args) != 0) {
         new_entry->is_complete = new_entry->is_error = 1;
+        new_entry->ref_count--;
         pthread_cond_broadcast(&new_entry->cond);
         free(args->hostname);
         free(args->path);
@@ -108,4 +117,60 @@ void cache_mark_complete(Entry* entry) {
     entry->is_complete = 1;
     pthread_cond_broadcast(&entry->cond);
     pthread_mutex_unlock(&entry->mutex);
+}
+
+void free_entry(Entry* entry) {
+    if (!entry) return;
+
+    Node* current = entry->first;
+    while (current) {
+        Node* next = current->next;
+        free(current->value);
+        free(current);
+        current = next;
+    }
+
+    pthread_mutex_destroy(&entry->mutex);
+    pthread_cond_destroy(&entry->cond);
+
+    free(entry->url);
+    free(entry);
+}
+
+void cache_entry_release(Entry* entry) {
+    int should_free = 0;
+
+    pthread_mutex_lock(&entry->mutex);
+    entry->ref_count--;
+    if (entry->ref_count == 0) {
+        should_free = 1;
+    }
+    pthread_mutex_unlock(&entry->mutex);
+
+    if (should_free) {
+        free_entry(entry);
+    }
+}
+
+void cache_remove_unsafe(Cache* cache, Entry* entry) {
+    pthread_rwlock_wrlock(&cache->rwlock);
+
+    Entry* prev = NULL;
+    Entry* current = cache->first;
+    while (current) {
+        if (current == entry) {
+            if (prev) {
+                prev->next = current->next;
+            } else {
+                cache->first = current->next;
+            }
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    pthread_rwlock_unlock(&cache->rwlock);
+    entry->next = NULL;
+
+    cache_entry_release(entry); // лист больше не держит сылку
 }
