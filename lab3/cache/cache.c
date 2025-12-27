@@ -5,41 +5,41 @@
 
 #include "downloader.h"
 
-int cache_init(Cache** list) {
-    (*list) = malloc(sizeof(Cache));
-    (*list)->first = NULL;
+int cache_init(Cache** cache) {
+    (*cache) = malloc(sizeof(Cache));
+    (*cache)->first = NULL;
 
-    if (pthread_rwlock_init(&(*list)->rwlock, NULL) != 0) {
-        free(list);
+    if (pthread_rwlock_init(&(*cache)->rwlock, NULL) != 0) {
+        free(cache);
         return 1;
     }
 
     return 0;
 }
 
-Entry* cache_find_or_create(Cache* list, char* host, int port, char* path) {
+Entry* cache_find_or_create(Cache* cache, char* host, int port, char* path) {
     char url[2048];
     int len = snprintf(url, sizeof(url), "%s:%d%s", host, port, path);
     if (len >= sizeof(url)) {
         printf("ERROR: URL IS TO LONG (%d) : %s:%d%s\n", len, host, port, path);
         return NULL;
     }
-    pthread_rwlock_rdlock(&list->rwlock);
-    Entry* current = list->first;
+    pthread_rwlock_rdlock(&cache->rwlock);
+    Entry* current = cache->first;
     while (current) {
         if (strcmp(current->url, url) == 0) {
-            pthread_rwlock_unlock(&list->rwlock);
+            pthread_rwlock_unlock(&cache->rwlock);
             return current;
         }
         current = current->next;
     }
-    pthread_rwlock_unlock(&list->rwlock);
+    pthread_rwlock_unlock(&cache->rwlock);
     
-    pthread_rwlock_wrlock(&list->rwlock);
-    current = list->first;
+    pthread_rwlock_wrlock(&cache->rwlock);
+    current = cache->first;
     while (current) {
         if (strcmp(current->url, url) == 0) {
-            pthread_rwlock_unlock(&list->rwlock);
+            pthread_rwlock_unlock(&cache->rwlock);
             return current;
         }
         current = current->next;
@@ -56,8 +56,8 @@ Entry* cache_find_or_create(Cache* list, char* host, int port, char* path) {
     pthread_mutex_init(&new_entry->mutex, NULL);
     pthread_cond_init(&new_entry->cond, NULL);
     
-    new_entry->next = list->first;
-    list->first = new_entry;
+    new_entry->next = cache->first;
+    cache->first = new_entry;
 
     download_args *args = malloc(sizeof(download_args));
     args->hostname = strdup(host);
@@ -76,7 +76,7 @@ Entry* cache_find_or_create(Cache* list, char* host, int port, char* path) {
         pthread_detach(downloader);
     }
     
-    pthread_rwlock_unlock(&list->rwlock);
+    pthread_rwlock_unlock(&cache->rwlock);
     return new_entry;
 }
 

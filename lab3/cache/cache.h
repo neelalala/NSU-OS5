@@ -11,7 +11,7 @@ typedef struct Node_t {
 
 typedef struct Entry_t {
     char* url;
-    
+
     Node* first;
     Node* last;
     int total_size;
@@ -30,8 +30,8 @@ typedef struct Cache_t {
     pthread_rwlock_t rwlock;
 } Cache;
 
-int cache_init(Cache** list);
-Entry* cache_find_or_create(Cache* list, char* host, int port, char* path);
+int cache_init(Cache** cache);
+Entry* cache_find_or_create(Cache* cache, char* host, int port, char* path);
 void cache_append_data(Entry* entry, char* data, int len);
 void cache_mark_complete(Entry* entry);
 
