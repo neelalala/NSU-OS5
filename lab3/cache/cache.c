@@ -172,5 +172,5 @@ void cache_remove_unsafe(Cache* cache, Entry* entry) {
     pthread_rwlock_unlock(&cache->rwlock);
     entry->next = NULL;
 
-    cache_entry_release(entry); // лист больше не держит сылку
+    cache_entry_release(entry); // лист больше не держит ссылку
 }
