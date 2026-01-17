@@ -9,7 +9,7 @@
 
 int connect_to_remote(char *hostname, int port) {
     int sockfd;
-    struct addrinfo hints, *servinfo, *p;
+    struct addrinfo hints, *servinfo, *servaddr;
     char port_str[6];
 
     snprintf(port_str, sizeof(port_str), "%d", port);
@@ -24,13 +24,13 @@ int connect_to_remote(char *hostname, int port) {
         return -1;
     }
 
-    for (p = servinfo; p; p = p->ai_next) {
-        sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    for (servaddr = servinfo; servaddr; servaddr = servaddr->ai_next) {
+        sockfd = socket(servaddr->ai_family, servaddr->ai_socktype, servaddr->ai_protocol);
         if (sockfd == -1 ) {
             continue;
         }
 
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1 ) {
+        if (connect(sockfd, servaddr->ai_addr, servaddr->ai_addrlen) == -1 ) {
             close(sockfd);
             continue;
         }
@@ -40,7 +40,7 @@ int connect_to_remote(char *hostname, int port) {
 
     freeaddrinfo(servinfo);
 
-    if (!p) {
+    if (!servaddr) {
         return -1;
     }
 
