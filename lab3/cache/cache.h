@@ -37,6 +37,6 @@ void cache_append_data(Entry* entry, char* data, int len);
 void cache_mark_complete(Entry* entry);
 
 void cache_entry_release(Entry* entry); // если ref_count == 0, освобождает Entry
-void cache_remove_unsafe(Cache* cache, Entry* entry); // не освобождает сам Entry, только удаляет из списка
+void cache_remove_unsafe(Cache* cache, Entry* entry); // удаляет Entry из списка, делает cache_entry_release
 
 #endif
