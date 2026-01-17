@@ -4,30 +4,30 @@
 #include "http_parser.h"
 
 void parse_url(char *url, http_request_t *request) {
-    char *p = url;
+    char *ptr = url;
 
-    if (strncasecmp(p, "http://", 7) == 0) {
-        p += 7;
+    if (strncasecmp(ptr, "http://", 7) == 0) {
+        ptr += 7;
     }
 
-    char *h = request->hostname;
-    while (*p && *p != ':' && *p != '/') {
-        *h++ = *p++;
+    char *hostname = request->hostname;
+    while (*ptr && *ptr != ':' && *ptr != '/') {
+        *hostname++ = *ptr++;
     }
-    *h = '\0';
+    *hostname = '\0';
 
-    if (*p == ':') {
-        p++;
-        request->port = atoi(p);
-        while (*p && *p != '/') {
-            p++;
+    if (*ptr == ':') {
+        ptr++;
+        request->port = atoi(ptr);
+        while (*ptr && *ptr != '/') {
+            ptr++;
         }
     } else {
         request->port = 80;
     }
 
-    if (*p == '/') {
-        strncpy(request->path, p, sizeof(request->path) - 1);
+    if (*ptr == '/') {
+        strncpy(request->path, ptr, sizeof(request->path) - 1);
         request->path[sizeof(request->path) - 1] = '\0';
     } else {
         strcpy(request->path, "/");
