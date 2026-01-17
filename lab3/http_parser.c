@@ -41,11 +41,11 @@ int parse_request(char *buffer, http_request_t *request) {
     memset(request, 0, sizeof(http_request_t));
 
     if (sscanf(buffer, "%s %s %s", request->method, url, protocol) != 3) {
-        return -1; 
+        return BAD_REQUEST;
     }
 
     if (strcasecmp(request->method, "GET") != 0) {
-        return -1;
+        return METHOD_NOT_ALLOWED;
     }
 
     parse_url(url, request);

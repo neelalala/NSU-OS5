@@ -110,7 +110,18 @@ void* handle_client(void *args) {
     free(client_info);
 
     http_request_t req;
-    if (read_request(client_sock, &req) < 0) {
+    int err;
+    err = read_request(client_sock, &req);
+    if (err) {
+        if (err == METHOD_NOT_ALLOWED) {
+            char *resp =
+                "HTTP/1.0 405 Method Not Allowed\r\n"
+                "Allow: GET\r\n"
+                "Content-Length: 0\r\n"
+                "Connection: close\r\n\r\n";
+            write(client_sock, resp, strlen(resp));
+        }
+
         printf("[Client] Failed to parse request or unsupported method\n");
         close(client_sock);
         return NULL;
